@@ -7,12 +7,11 @@ from aiohttp import ClientSession
 from db import Session, engine, Base, People
 
 CHUNK_SIZE = 10
-URL = URL_SWAPI
 
 
 async def get_person(person_id):
     session = ClientSession()
-    response = await session.get(f'{URL}/{person_id}')
+    response = await session.get(f'{URL_SWAPI}/{person_id}')
     status_code = response.status
     person = await response.json()
     await session.close()
@@ -27,6 +26,37 @@ async def get_people(start, end):
             yield person
 
 
+async def get_homeworld(URL_HW) -> str:
+    async with ClientSession() as session:
+        async with session.get(URL_HW) as response:
+            response = await response.json()
+        await session.close()
+    hw = response['name']
+    return hw
+
+
+async def get_films(url_films: list) -> str:
+    films = []
+    for film in url_films:
+        async with ClientSession() as session:
+            async with session.get(film) as response:
+                response = await response.json()
+            await session.close()
+        films.append(response['title'])
+    return ', '.join(films)
+
+
+async def get_str(url_list: list) -> str:
+    returned_list = []
+    for url in url_list:
+        async with ClientSession() as session:
+            async with session.get(url) as response:
+                response = await response.json()
+            await session.close()
+        returned_list.append(response['name'])
+    return ', '.join(returned_list)
+
+
 async def paste_people(persons):
     async with Session() as session:
         people_orm = []
@@ -38,17 +68,17 @@ async def paste_people(persons):
                 new_person = People(
                     birth_year=person[0]['birth_year'],
                     eye_color=person[0]['eye_color'],
-                    films=','.join(person[0]['films']),
+                    films=await get_films(person[0]['films']),
                     gender=person[0]['gender'],
                     hair_color=person[0]['hair_color'],
                     height=person[0]['height'],
-                    homeworld=person[0]['homeworld'],
+                    homeworld=await get_homeworld(person[0]['homeworld']),
                     mass=person[0]['mass'],
                     name=person[0]['name'],
                     skin_color=person[0]['skin_color'],
-                    species=','.join(person[0]['species']),
-                    starships=','.join(person[0]['starships']),
-                    vehicles=','.join(person[0]['vehicles'])
+                    species=await get_str(person[0]['species']),
+                    starships=await get_str(person[0]['starships']),
+                    vehicles=await get_str(person[0]['vehicles'])
                 )
                 people_orm.append(new_person)
         session.add_all(people_orm)
